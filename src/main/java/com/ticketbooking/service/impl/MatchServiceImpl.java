@@ -8,6 +8,7 @@ import com.ticketbooking.dto.CreateMatchRequest;
 import com.ticketbooking.dto.MatchDTO;
 import com.ticketbooking.entity.MatchEntity;
 import com.ticketbooking.enums.MatchStatusEnum;
+import com.ticketbooking.exception.MatchNotFoundException;
 import com.ticketbooking.mapper.MatchMapper;
 import com.ticketbooking.repository.MatchRepository;
 import com.ticketbooking.service.MatchService;
@@ -46,12 +47,15 @@ public class MatchServiceImpl implements MatchService {
   @Override
   public MatchDTO getMatch(Long matchId) {
     MatchEntity match = matchRepository.findById(matchId)
-        .orElseThrow(() -> new RuntimeException("Match not found"));
+        .orElseThrow(() -> new MatchNotFoundException(matchId));
     return MatchMapper.toDTO(match);
   }
 
   @Override
   public void deleteMatch(Long matchId) {
+    if (!matchRepository.existsById(matchId)) {
+      throw new MatchNotFoundException(matchId);
+    }
     matchRepository.deleteById(matchId);
   }
 }
