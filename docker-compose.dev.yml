@@ -16,6 +16,7 @@ services:
       - "--skip-character-set-client-handshake"
     volumes:
       - ./data/db_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "3336:3306"
     networks:
