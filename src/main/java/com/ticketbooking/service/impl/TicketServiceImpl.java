@@ -1,5 +1,6 @@
 package com.ticketbooking.service.impl;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -13,6 +14,7 @@ import com.ticketbooking.enums.TicketStatusEnum;
 import com.ticketbooking.exception.TicketNotFoundException;
 import com.ticketbooking.mapper.TicketMapper;
 import com.ticketbooking.repository.TicketRepository;
+import com.ticketbooking.service.RedisService;
 import com.ticketbooking.service.TicketService;
 
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 public class TicketServiceImpl implements TicketService {
 
   private final TicketRepository ticketRepository;
+  private final RedisService redisService;
 
   @Override
   public TicketDTO createTicket(CreateTicketRequest request) {
@@ -47,9 +50,21 @@ public class TicketServiceImpl implements TicketService {
 
   @Override
   public TicketDTO getTicket(Long id) {
-    TicketEntity entity = ticketRepository.findById(id)
+    // get ticket from redis cache
+    TicketEntity ticket = redisService.getObject(genTicketKey(id), TicketEntity.class);
+
+    // cache hit
+    if (ticket != null) {
+      log.info("FROM CACHE | ticket - id: {} - ticket: {}", id, ticket);
+      return TicketMapper.toDTO(ticket);
+    }
+
+    // cache miss
+    log.info("FROM DATABASE | Getting ticket with id: {}", id);
+    ticket = ticketRepository.findById(id)
         .orElseThrow(() -> new TicketNotFoundException(id));
-    return TicketMapper.toDTO(entity);
+    redisService.setObject(genTicketKey(id), ticket);
+    return TicketMapper.toDTO(ticket);
   }
 
   @Override
@@ -71,7 +86,8 @@ public class TicketServiceImpl implements TicketService {
     entity.setSaleStartAt(request.getSaleStartAt());
     entity.setSaleEndAt(request.getSaleEndAt());
     entity.setUpdatedAt(LocalDateTime.now());
-    return TicketMapper.toDTO(ticketRepository.save(entity));
+    TicketDTO dto = TicketMapper.toDTO(ticketRepository.save(entity));
+    return dto;
   }
 
   @Override
@@ -80,5 +96,9 @@ public class TicketServiceImpl implements TicketService {
       throw new TicketNotFoundException(id);
     }
     ticketRepository.deleteById(id);
+  }
+
+  private String genTicketKey(Long ticketId) {
+    return "MATCH:TICKET:" + ticketId;
   }
 }
