@@ -86,6 +86,13 @@
 			<artifactId>spring-boot-starter-data-redis</artifactId>
 		</dependency>
 
+		<!-- Redisson (distributed locking only; object caching still goes through RedisTemplate/RedisService) -->
+		<dependency>
+			<groupId>org.redisson</groupId>
+			<artifactId>redisson</artifactId>
+			<version>4.6.1</version>
+		</dependency>
+
 		<!-- FastJSON -->
 		<dependency>
 			<groupId>com.alibaba</groupId>
