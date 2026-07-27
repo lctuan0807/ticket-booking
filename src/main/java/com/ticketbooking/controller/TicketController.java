@@ -45,6 +45,7 @@ public class TicketController {
 
   @GetMapping("/{id}")
   public ResponseEntity<ResultMessage<TicketDTO>> getTicket(@PathVariable Long id) {
+    log.info("Getting ticket: {}", id);
     try {
       return ResponseEntity.ok(ResultUtil.data(ticketService.getTicket(id)));
     } catch (TicketNotFoundException e) {

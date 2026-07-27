@@ -34,3 +34,12 @@ build/
 
 ### MySQL ###
 data/
+environment/mysql_data/
+
+### Grafana ###
+environment/grafana/
+environment/grafana-storage/
+
+### Report ###
+report/
+results.jtl
