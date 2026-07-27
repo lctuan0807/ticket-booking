@@ -1,0 +1,78 @@
+networks:
+  ticket-booking-network:
+    driver: bridge
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: ticket_booking
+      MYSQL_PASSWORD: password
+    command:
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+      - "--skip-character-set-client-handshake"
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+      - ./mysql/init_data.sql:/docker-entrypoint-initdb.d/init_data.sql
+    ports:
+      - "3336:3306"
+    networks:
+      - ticket-booking-network
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - ticket-booking-network
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SING_UP=false
+      - GF_SERVER_DOMAIN=localhost
+      - GF_LOG_MODE=console file
+      - GF_LOG_FILTERS=alerting.notifier.slack:debug alermanager:debug ngalert:debug
+    volumes:
+      - ./grafana-storage:/var/lib/grafana
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - ticket-booking-network
+
+  mysqld-exporter:
+    image: prom/mysqld-exporter
+    container_name: mysqld-exporter
+    ports:
+      - "9104:9104"
+    command:
+      - '--collect.engine_innodb_status'
+      - '--collect.info_schema.processlist'
+      - '--collect.info_schema.tables'
+      - '--collect.info_schema.query_response_time'
+      - '--collect.perf_schema.file_events'
+      - '--collect.perf_schema.eventsstatements'
+      - '--collect.perf_schema.indexiowaits'
+      - '--collect.global_status'
+#      - '--ignore-tables'
+      - '--config.my-cnf=/etc/mysql/.my.cnf'
+    volumes:
+      - ./mysqld-exporter/.my.cnf:/etc/mysql/.my.cnf
+    environment:
+      - DATA_SOURCE_NAME=root:password@tcp(mysql:3336)/
+    depends_on:
+      - mysql
+    networks:
+      - ticket-booking-network
