@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.redisson.api.RLock;
 import org.springframework.stereotype.Service;
 
 import com.ticketbooking.dto.CreateTicketRequest;
@@ -22,8 +21,6 @@ import com.ticketbooking.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.redisson.api.RedissonClient;
-
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -31,7 +28,6 @@ public class TicketServiceImpl implements TicketService {
 
   private final TicketRepository ticketRepository;
   private final RedisService redisService;
-  private final RedissonClient redissonClient;
 
   @Override
   public TicketDTO createTicket(CreateTicketRequest request) {
@@ -51,6 +47,13 @@ public class TicketServiceImpl implements TicketService {
     TicketEntity saved = ticketRepository.save(entity);
     log.info("Created ticket (id={})", saved.getId());
     return TicketMapper.toDTO(saved);
+  }
+
+  @Override
+  public TicketDTO getTicket(Long id) {
+    TicketEntity entity = ticketRepository.findById(id)
+        .orElseThrow(() -> new TicketNotFoundException(id));
+    return TicketMapper.toDTO(entity);
   }
 
   // Cache-Aside Pattern
@@ -73,21 +76,6 @@ public class TicketServiceImpl implements TicketService {
   // redisService.setObject(genTicketKey(id), ticket);
   // return TicketMapper.toDTO(ticket);
   // }
-
-  @Override
-  public TicketDTO getTicket(Long id) {
-    String cacheKey = genTicketKey(id);
-
-    TicketEntity ticketCache = redisService.getObject(cacheKey,
-        TicketEntity.class);
-    if (ticketCache == null) {
-      log.info("GET TICKET FROM DISTRIBUTED LOCK");
-      ticketCache = getTicketFromDatabase(id);
-    }
-
-    log.info("FROM REDIS CACHE | ticket - id: {} - ticket: {}", id, ticketCache);
-    return TicketMapper.toDTO(ticketCache);
-  }
 
   @Override
   public List<TicketDTO> listTickets() {
@@ -120,44 +108,7 @@ public class TicketServiceImpl implements TicketService {
     ticketRepository.deleteById(id);
   }
 
-  private TicketEntity getTicketFromDatabase(Long ticketId) {
-    RLock lock = redissonClient.getLock(genTicketLockKey(ticketId));
-    boolean isLockAcquired = false;
-    try {
-      isLockAcquired = lock.tryLock(1, 5, TimeUnit.SECONDS);
-      if (!isLockAcquired) {
-        throw new RuntimeException("Failed to acquire lock");
-      }
-
-      // get cache
-      TicketEntity ticketCache = redisService.getObject(genTicketKey(ticketId), TicketEntity.class);
-      if (ticketCache != null) {
-        return ticketCache;
-      }
-
-      // cache miss, get from database
-      TicketEntity ticket = ticketRepository.findById(ticketId)
-          .orElseThrow(() -> new TicketNotFoundException(ticketId));
-
-      // cache the ticket
-      redisService.setObject(genTicketKey(ticketId), ticket);
-
-      return ticket;
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException("Interrupted while acquiring lock for ticket id: " + ticketId, e);
-    } finally {
-      if (isLockAcquired && lock.isHeldByCurrentThread()) {
-        lock.unlock();
-      }
-    }
-  }
-
   private String genTicketKey(Long ticketId) {
     return "MATCH:TICKET:" + ticketId;
-  }
-
-  private String genTicketLockKey(Long ticketId) {
-    return genTicketKey(ticketId) + ":lock";
   }
 }
