@@ -49,33 +49,33 @@ public class TicketServiceImpl implements TicketService {
     return TicketMapper.toDTO(saved);
   }
 
-  @Override
-  public TicketDTO getTicket(Long id) {
-    TicketEntity entity = ticketRepository.findById(id)
-        .orElseThrow(() -> new TicketNotFoundException(id));
-    return TicketMapper.toDTO(entity);
-  }
-
-  // Cache-Aside Pattern
   // @Override
   // public TicketDTO getTicket(Long id) {
-  // // get ticket from redis cache
-  // TicketEntity ticket = redisService.getObject(genTicketKey(id),
-  // TicketEntity.class);
-
-  // // cache hit
-  // if (ticket != null) {
-  // log.info("FROM CACHE | ticket - id: {} - ticket: {}", id, ticket);
-  // return TicketMapper.toDTO(ticket);
-  // }
-
-  // // cache miss
-  // log.info("FROM DATABASE | Getting ticket with id: {}", id);
-  // ticket = ticketRepository.findById(id)
+  // TicketEntity entity = ticketRepository.findById(id)
   // .orElseThrow(() -> new TicketNotFoundException(id));
-  // redisService.setObject(genTicketKey(id), ticket);
-  // return TicketMapper.toDTO(ticket);
+  // return TicketMapper.toDTO(entity);
   // }
+
+  // Cache-Aside Pattern
+  @Override
+  public TicketDTO getTicket(Long id) {
+    // get ticket from redis cache
+    TicketEntity ticket = redisService.getObject(genTicketKey(id),
+        TicketEntity.class);
+
+    // cache hit
+    if (ticket != null) {
+      log.info("FROM CACHE | ticket - id: {} - ticket: {}", id, ticket);
+      return TicketMapper.toDTO(ticket);
+    }
+
+    // cache miss
+    log.info("FROM DATABASE | Getting ticket with id: {}", id);
+    ticket = ticketRepository.findById(id)
+        .orElseThrow(() -> new TicketNotFoundException(id));
+    redisService.setObject(genTicketKey(id), ticket);
+    return TicketMapper.toDTO(ticket);
+  }
 
   @Override
   public List<TicketDTO> listTickets() {
