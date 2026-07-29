@@ -43,3 +43,4 @@ environment/grafana-storage/
 ### Report ###
 report/
 results.jtl
+jmeter.log
