@@ -43,7 +43,8 @@ public class TicketController {
   public ResponseEntity<ResultMessage<TicketDTO>> getTicket(@PathVariable Long id) {
     log.info("Controller | Getting ticket with id: {}", id);
     try {
-      return ResponseEntity.ok(ResultUtil.data(ticketService.getTicket(id)));
+      // return ResponseEntity.ok(ResultUtil.data(ticketService.getTicketWithCache(id)));
+      return ResponseEntity.ok(ResultUtil.data(ticketService.getTicketWithDistributedLockCache(id)));
     } catch (TicketNotFoundException e) {
       return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ResultUtil.error(404, e.getMessage()));
     } catch (Exception e) {

@@ -5,7 +5,9 @@ import java.util.List;
 public interface TicketService {
   TicketDTO createTicket(CreateTicketRequest request);
 
-  TicketDTO getTicket(Long id);
+  TicketDTO getTicketWithCache(Long id);
+
+  TicketDTO getTicketWithDistributedLockCache(Long id);
 
   List<TicketDTO> listTickets();
 
