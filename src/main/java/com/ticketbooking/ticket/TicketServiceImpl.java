@@ -64,12 +64,16 @@ public class TicketServiceImpl implements TicketService {
   // a stampede of concurrent DB reads for the same ticket.
   @Override
   public TicketDTO getTicketWithDistributedLockCache(Long id) {
+    // 1. get from cache
     TicketEntity ticket = getFromCache(id);
+
+    // cache hit
     if (ticket != null) {
       log.info("FROM CACHE | ticket - id: {} - ticket: {}", id, ticket);
       return TicketMapper.toDTO(ticket);
     }
 
+    // cache miss
     return TicketMapper.toDTO(getTicketWithLock(id));
   }
 
@@ -81,67 +85,41 @@ public class TicketServiceImpl implements TicketService {
     RLock lock = redissonClient.getLock(genTicketLockKey(id));
     boolean acquired = false;
     try {
-      acquired = lock.tryLock(LOCK_WAIT_MS, TimeUnit.MILLISECONDS);
+      acquired = lock.tryLock(1, 5, TimeUnit.SECONDS);
 
-      if (acquired) {
-        // double-check: another request may have populated the cache while we waited
-        TicketEntity ticket = getFromCache(id);
-        if (ticket != null) {
-          log.info("FROM CACHE (after lock) | ticket - id: {} - ticket: {}", id, ticket);
-          return ticket;
-        }
-        return loadTicketFromDbAndCache(id);
+      // if failed to acquire lock, return null
+      if (!acquired) {
+        log.warn("Failed to acquire lock for ticket id: {}", id);
+        return null;
       }
 
-      // lock is busy: another request is already rebuilding the cache
-      return waitForCacheOrFallback(id);
+      // check cache again after acquiring lock
+      TicketEntity ticket = getFromCache(id);
+
+      // if cache hit, return it
+      if (ticket != null) {
+        log.info("FROM CACHE (after lock) | ticket - id: {} - ticket: {}", id, ticket);
+        return ticket;
+      }
+
+      // cache miss: load from DB and cache it
+      ticket = loadTicketFromDbAndCache(id);
+      return ticket;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("Interrupted while acquiring ticket lock for id: " + id, e);
     } finally {
-      if (acquired && lock.isHeldByCurrentThread()) {
-        lock.unlock();
-      }
+      lock.unlock();
     }
-  }
-
-  private TicketEntity waitForCacheOrFallback(Long id) {
-    TicketEntity ticket = pollCache(id, POLL_TIMEOUT_MS, POLL_INTERVAL_MS);
-    if (ticket != null) {
-      log.info("FROM CACHE (after poll) | ticket - id: {} - ticket: {}", id, ticket);
-      return ticket;
-    }
-
-    // safety fallback so the request never hangs indefinitely
-    log.warn("Lock busy and cache poll timed out | Getting ticket with id: {} directly from DB", id);
-    return loadTicketFromDbAndCache(id);
   }
 
   private TicketEntity loadTicketFromDbAndCache(Long id) {
     log.info("FROM DATABASE | Getting ticket with id: {}", id);
     count++;
     redisService.setObject("count", count);
-    TicketEntity ticket = ticketRepository.findById(id)
-        .orElseThrow(() -> new TicketNotFoundException(id));
+    TicketEntity ticket = ticketRepository.findById(id).orElse(null);
     redisService.setObject(genTicketKey(id), ticket);
     return ticket;
-  }
-
-  private TicketEntity pollCache(Long id, long timeoutMs, long intervalMs) {
-    long deadline = System.currentTimeMillis() + timeoutMs;
-    while (System.currentTimeMillis() < deadline) {
-      TicketEntity cached = getFromCache(id);
-      if (cached != null) {
-        return cached;
-      }
-      try {
-        Thread.sleep(intervalMs);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        return null;
-      }
-    }
-    return null;
   }
 
   @Override
