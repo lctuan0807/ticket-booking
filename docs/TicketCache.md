@@ -75,18 +75,40 @@ Error Set:
 Get "http://localhost:8080/api/v1/tickets/1": dial tcp 0.0.0.0:0->[::1]:8080: bind: resource temporarily unavailable
 ```
 
-### with 7000 QPS - failed with 41.04% error rate
+```
+echo "GET http://localhost:8080/api/v1/tickets/1" | vegeta attack -duration=10s -rate=5000 | vegeta report
+Requests      [total, rate, throughput]         23226, 1842.31, 304.88
+Duration      [total, attack, wait]             37.011s, 12.607s, 24.404s
+Latencies     [min, mean, 50, 90, 95, 99, max]  1.232ms, 15.254s, 13.268s, 30.006s, 30.024s, 30.224s, 30.346s
+Bytes In      [total, mean]                     3593111, 154.70
+Bytes Out     [total, mean]                     0, 0.00
+Success       [ratio]                           48.58%
+Status Codes  [code:count]                      0:11674  200:11284  500:268
+Error Set:
+Get "http://localhost:8080/api/v1/tickets/1": dial tcp 0.0.0.0:0->127.0.0.1:8080: bind: can't assign requested address
+Get "http://localhost:8080/api/v1/tickets/1": dial tcp 0.0.0.0:0->[::1]:8080: bind: resource temporarily unavailable
+500
+Get "http://localhost:8080/api/v1/tickets/1": dial tcp 0.0.0.0:0->[::1]:8080: connect: operation timed out
+Get "http://localhost:8080/api/v1/tickets/1": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+
+Hit DB ~ 300 times
+```
+
+# Cache with Distributed Locking (Redisson)
 
 ```
-echo "GET http://localhost:8080/api/v1/tickets/1" | vegeta attack -duration=10s -rate=7000 | vegeta report
-Requests      [total, rate, throughput]         29546, 2931.04, 1239.88
-Duration      [total, attack, wait]             14.051s, 10.08s, 3.97s
-Latencies     [min, mean, 50, 90, 95, 99, max]  928.833µs, 5.305s, 7.813s, 10.64s, 10.896s, 11.199s, 11.867s
-Bytes In      [total, mean]                     5104353, 172.76
+echo "GET http://localhost:8080/api/v1/tickets/1" | vegeta attack -duration=10s -rate=5000 | vegeta report
+Requests      [total, rate, throughput]         20768, 2055.64, 622.08
+Duration      [total, attack, wait]             25.395s, 10.103s, 15.292s
+Latencies     [min, mean, 50, 90, 95, 99, max]  1.241ms, 13.793s, 16.7s, 20.655s, 21.495s, 22.002s, 24.52s
+Bytes In      [total, mean]                     5079130, 244.57
 Bytes Out     [total, mean]                     0, 0.00
-Success       [ratio]                           58.96%
-Status Codes  [code:count]                      0:12125  200:17421
+Success       [ratio]                           76.07%
+Status Codes  [code:count]                      0:4109  200:15798  500:861
 Error Set:
+500
 Get "http://localhost:8080/api/v1/tickets/1": dial tcp 0.0.0.0:0->[::1]:8080: bind: resource temporarily unavailable
 Get "http://localhost:8080/api/v1/tickets/1": dial tcp 0.0.0.0:0->[::1]:8080: connect: operation timed out
+
+Hit DB ~ 1-2 times
 ```

@@ -2,8 +2,11 @@ package com.ticketbooking.ticket;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 
 import com.ticketbooking.redis.RedisService;
@@ -16,8 +19,15 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class TicketServiceImpl implements TicketService {
 
+  private static final long LOCK_WAIT_MS = 5000;
+  private static final long POLL_TIMEOUT_MS = 1700;
+  private static final long POLL_INTERVAL_MS = 50;
+
   private final TicketRepository ticketRepository;
   private final RedisService redisService;
+  private final RedissonClient redissonClient;
+
+  private static int count = 0;
 
   @Override
   public TicketDTO createTicket(CreateTicketRequest request) {
@@ -39,19 +49,23 @@ public class TicketServiceImpl implements TicketService {
     return TicketMapper.toDTO(saved);
   }
 
-  // @Override
-  // public TicketDTO getTicket(Long id) {
-  // TicketEntity entity = ticketRepository.findById(id)
-  // .orElseThrow(() -> new TicketNotFoundException(id));
-  // return TicketMapper.toDTO(entity);
-  // }
-
-  // Cache-Aside Pattern
+  // Cache-Aside Pattern (no locking)
   @Override
-  public TicketDTO getTicket(Long id) {
-    // get ticket from redis cache
-    TicketEntity ticket = redisService.getObject(genTicketKey(id),
-        TicketEntity.class);
+  public TicketDTO getTicketWithCache(Long id) {
+    TicketEntity ticket = getFromCache(id);
+    if (ticket != null) {
+      log.info("FROM CACHE | ticket - id: {} - ticket: {}", id, ticket);
+      return TicketMapper.toDTO(ticket);
+    }
+    return TicketMapper.toDTO(loadTicketFromDbAndCache(id));
+  }
+
+  // Cache-Aside Pattern, guarded by a distributed lock on cache-miss to avoid
+  // a stampede of concurrent DB reads for the same ticket.
+  @Override
+  public TicketDTO getTicketWithDistributedLockCache(Long id) {
+    // 1. get from cache
+    TicketEntity ticket = getFromCache(id);
 
     // cache hit
     if (ticket != null) {
@@ -60,11 +74,52 @@ public class TicketServiceImpl implements TicketService {
     }
 
     // cache miss
+    return TicketMapper.toDTO(getTicketWithLock(id));
+  }
+
+  private TicketEntity getFromCache(Long id) {
+    return redisService.getObject(genTicketKey(id), TicketEntity.class);
+  }
+
+  private TicketEntity getTicketWithLock(Long id) {
+    RLock lock = redissonClient.getLock(genTicketLockKey(id));
+    boolean acquired = false;
+    try {
+      acquired = lock.tryLock(1, 5, TimeUnit.SECONDS);
+
+      // if failed to acquire lock, return null
+      if (!acquired) {
+        log.warn("Failed to acquire lock for ticket id: {}", id);
+        return null;
+      }
+
+      // check cache again after acquiring lock
+      TicketEntity ticket = getFromCache(id);
+
+      // if cache hit, return it
+      if (ticket != null) {
+        log.info("FROM CACHE (after lock) | ticket - id: {} - ticket: {}", id, ticket);
+        return ticket;
+      }
+
+      // cache miss: load from DB and cache it
+      ticket = loadTicketFromDbAndCache(id);
+      return ticket;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted while acquiring ticket lock for id: " + id, e);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  private TicketEntity loadTicketFromDbAndCache(Long id) {
     log.info("FROM DATABASE | Getting ticket with id: {}", id);
-    ticket = ticketRepository.findById(id)
-        .orElseThrow(() -> new TicketNotFoundException(id));
+    count++;
+    redisService.setObject("count", count);
+    TicketEntity ticket = ticketRepository.findById(id).orElse(null);
     redisService.setObject(genTicketKey(id), ticket);
-    return TicketMapper.toDTO(ticket);
+    return ticket;
   }
 
   @Override
@@ -100,5 +155,9 @@ public class TicketServiceImpl implements TicketService {
 
   private String genTicketKey(Long ticketId) {
     return "MATCH:TICKET:" + ticketId;
+  }
+
+  private String genTicketLockKey(Long ticketId) {
+    return "TICKET:LOCK:" + ticketId;
   }
 }
