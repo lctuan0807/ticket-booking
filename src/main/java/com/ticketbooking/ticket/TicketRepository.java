@@ -25,6 +25,9 @@ public interface TicketRepository extends JpaRepository<TicketEntity, Long> {
   @Transactional
   // @Query("UPDATE TicketEntity t SET t.soldQuantity = :soldQuantity WHERE t.id =
   // :ticketId")
-  @Query("UPDATE TicketEntity t SET t.updatedAt = CURRENT_TIMESTAMP, t.soldQuantity = t.soldQuantity + :soldQuantity WHERE t.id = :ticketId AND t.soldQuantity + :soldQuantity <= t.totalQuantity")
-  int updateSoldQuantity(@Param("ticketId") Long ticketId, @Param("soldQuantity") int soldQuantity);
+  @Query("UPDATE TicketEntity t SET t.updatedAt = CURRENT_TIMESTAMP, t.soldQuantity = t.soldQuantity + :soldQuantity, "
+      + "t.status = CASE WHEN t.soldQuantity + :soldQuantity = t.totalQuantity THEN :soldOutStatus ELSE t.status END "
+      + "WHERE t.id = :ticketId AND t.soldQuantity + :soldQuantity <= t.totalQuantity")
+  int updateSoldQuantity(@Param("ticketId") Long ticketId, @Param("soldQuantity") int soldQuantity,
+      @Param("soldOutStatus") int soldOutStatus);
 }

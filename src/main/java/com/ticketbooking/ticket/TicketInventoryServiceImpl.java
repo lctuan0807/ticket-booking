@@ -1,13 +1,7 @@
 package com.ticketbooking.ticket;
 
-import java.time.LocalDateTime;
-import java.util.concurrent.TimeUnit;
-
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
-
-import com.ticketbooking.redis.RedisService;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,35 +12,39 @@ import lombok.extern.slf4j.Slf4j;
 public class TicketInventoryServiceImpl implements TicketInventoryService {
 
   private final TicketRepository ticketRepository;
-  private final RedisService redisService;
-  private final RedissonClient redissonClient;
 
-  // Reserves `quantity` tickets from the batch, guarded by the same lock key
-  // TicketServiceImpl uses on the read path so writes and cache-populating
-  // reads serialize on the same row.
+  // Single transaction/connection for the whole reservation: a plain findById
+  // fails fast on the common "already sold out" case without taking a row
+  // lock, and the guarded UPDATE is the sole source of truth for correctness
+  // under concurrency (its WHERE clause is the actual overselling guard).
+  //
+  // `ticket` stays untouched after loading: it's a JPA-managed entity, and
+  // mutating its fields would mark it dirty, causing Hibernate to auto-flush
+  // an unguarded full-row UPDATE at commit that clobbers the guarded update
+  // above with this request's own stale values. The response is built on a
+  // plain (non-managed) DTO instead.
   @Override
+  @Transactional
   public TicketDTO reserveTickets(Long ticketId, int quantity) {
-    if (quantity < 1) {
-      throw new IllegalArgumentException("Quantity must be at least 1");
-    }
+    TicketEntity ticket = ticketRepository.findById(ticketId)
+        .orElseThrow(() -> new TicketNotFoundException(ticketId));
 
-    int remaining = ticketRepository.getStockAvailable(ticketId);
-    log.info("Remaining tickets for ticketId {}: {}", ticketId, remaining);
-
+    int remaining = ticket.getTotalQuantity() - ticket.getSoldQuantity();
     if (quantity > remaining) {
       throw new TicketNotAvailableException(
           "Ticket batch " + ticketId + " has only " + remaining + " ticket(s) left, requested " + quantity);
     }
 
-    int updated = ticketRepository.updateSoldQuantity(ticketId, quantity);
-
+    int updated = ticketRepository.updateSoldQuantity(ticketId, quantity, TicketStatusEnum.SOLD_OUT.toInt());
     if (updated == 0) {
       throw new TicketNotAvailableException(
-          "Ticket batch " + ticketId + " is not available");
+          "Ticket batch " + ticketId + " is no longer available, please try again");
     }
 
-    log.info("Updated tickets for ticketId {}: {}", ticketId, updated);
+    int newSoldQuantity = ticket.getSoldQuantity() + quantity;
 
-    return TicketMapper.toDTO(ticketRepository.findById(ticketId).orElseThrow());
+    log.info("Reserved {} ticket(s) from batch id={}, soldQuantity={}, remaining={}", quantity, ticketId,
+        newSoldQuantity, remaining);
+    return TicketMapper.toDTO(ticket);
   }
 }
