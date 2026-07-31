@@ -59,3 +59,16 @@ INSERT INTO ticket_booking.ticket_items
   (ticket_id, ticket_code, seat_section, seat_row, seat_number, status, created_at, updated_at)
 VALUES
   (1, 'MU-MC-SAFS1-001', 'N40', 'N', '40', 0, NOW(), NOW());
+
+-- 7. Create order table
+CREATE TABLE IF NOT EXISTS ticket_booking.orders (
+  id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id       BIGINT         NOT NULL COMMENT 'Id of the user placing the order',
+  ticket_id     BIGINT         NOT NULL COMMENT 'Ticket batch id being ordered',
+  quantity      INT            NOT NULL COMMENT 'Number of tickets ordered',
+  unit_price    DECIMAL(10,2)  NOT NULL COMMENT 'Ticket unit price at the time of order',
+  total_amount  DECIMAL(10,2)  NOT NULL COMMENT 'Total order amount (unitPrice * quantity)',
+  status        INT            NOT NULL DEFAULT 0 COMMENT 'Order status: 0=CONFIRMED, 1=CANCELLED, 2=FAILED',
+  created_at    DATETIME       NOT NULL COMMENT 'Created at',
+  updated_at    DATETIME       NOT NULL COMMENT 'Updated at'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

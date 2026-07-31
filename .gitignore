@@ -43,4 +43,6 @@ environment/grafana-storage/
 ### Report ###
 report/
 results.jtl
+benchmark/
 jmeter.log
+.DS_Store
