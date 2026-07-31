@@ -165,10 +165,10 @@ public class TicketServiceImpl implements TicketService {
   }
 
   private String genTicketKey(Long ticketId) {
-    return "MATCH:TICKET:" + ticketId;
+    return TicketCacheKeys.genTicketKey(ticketId);
   }
 
   private String genTicketLockKey(Long ticketId) {
-    return "TICKET:LOCK:" + ticketId;
+    return TicketCacheKeys.genTicketLockKey(ticketId);
   }
 }

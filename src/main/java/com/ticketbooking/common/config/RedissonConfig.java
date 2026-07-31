@@ -1,4 +1,4 @@
-package com.ticketbooking.redis;
+package com.ticketbooking.common.config;
 
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
