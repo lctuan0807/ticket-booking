@@ -19,10 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class TicketServiceImpl implements TicketService {
 
-  private static final long LOCK_WAIT_MS = 5000;
-  private static final long POLL_TIMEOUT_MS = 1700;
-  private static final long POLL_INTERVAL_MS = 50;
-
   private final TicketRepository ticketRepository;
   private final RedisService redisService;
   private final RedissonClient redissonClient;
@@ -125,6 +121,21 @@ public class TicketServiceImpl implements TicketService {
   @Override
   public List<TicketDTO> listTickets() {
     return ticketRepository.findAll().stream()
+        .map(TicketMapper::toDTO)
+        .collect(Collectors.toList());
+  }
+
+  @Override
+  public List<TicketDTO> getAvailableTickets(Long matchId) {
+    return ticketRepository.findAvailableTickets(TicketStatusEnum.AVAILABLE.toInt(), matchId).stream()
+        .map(TicketMapper::toDTO)
+        .collect(Collectors.toList());
+  }
+
+  @Override
+  public List<TicketDTO> getTicketsByMatchId(Long matchId, TicketStatusEnum status) {
+    Integer statusValue = status != null ? status.toInt() : null;
+    return ticketRepository.findByMatchId(matchId, statusValue).stream()
         .map(TicketMapper::toDTO)
         .collect(Collectors.toList());
   }

@@ -11,6 +11,10 @@ public interface TicketService {
 
   List<TicketDTO> listTickets();
 
+  List<TicketDTO> getAvailableTickets(Long matchId);
+
+  List<TicketDTO> getTicketsByMatchId(Long matchId, TicketStatusEnum status);
+
   TicketDTO updateTicket(Long id, CreateTicketRequest request);
 
   void deleteTicket(Long id);

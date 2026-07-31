@@ -29,6 +29,12 @@ public class TicketItemController {
 
   private final TicketItemService ticketItemService;
 
+  /**
+   * Purpose: Create a new ticket item.
+   * Endpoint: POST /api/v1/ticket-items
+   * Params: request (body) - CreateTicketItemRequest with ticket item details.
+   * Return: 200 with the created TicketItemDTO; 500 on failure.
+   */
   @PostMapping
   public ResponseEntity<ResultMessage<TicketItemDTO>> createTicketItem(
       @RequestBody @Valid CreateTicketItemRequest request) {
@@ -40,6 +46,12 @@ public class TicketItemController {
     }
   }
 
+  /**
+   * Purpose: Fetch a single ticket item by id.
+   * Endpoint: GET /api/v1/ticket-items/{id}
+   * Params: id (path) - id of the ticket item to fetch.
+   * Return: 200 with the TicketItemDTO; 404 if not found; 500 on failure.
+   */
   @GetMapping("/{id}")
   public ResponseEntity<ResultMessage<TicketItemDTO>> getTicketItem(@PathVariable Long id) {
     try {
@@ -52,6 +64,12 @@ public class TicketItemController {
     }
   }
 
+  /**
+   * Purpose: List every ticket item.
+   * Endpoint: GET /api/v1/ticket-items
+   * Params: none.
+   * Return: 200 with the list of all TicketItemDTO; 500 on failure.
+   */
   @GetMapping
   public ResponseEntity<ResultMessage<List<TicketItemDTO>>> listTicketItems() {
     try {
@@ -62,6 +80,13 @@ public class TicketItemController {
     }
   }
 
+  /**
+   * Purpose: Update an existing ticket item.
+   * Endpoint: PUT /api/v1/ticket-items/{id}
+   * Params: id (path) - id of the ticket item to update; request (body) -
+   * CreateTicketItemRequest with the new ticket item details.
+   * Return: 200 with the updated TicketItemDTO; 404 if not found; 500 on failure.
+   */
   @PutMapping("/{id}")
   public ResponseEntity<ResultMessage<TicketItemDTO>> updateTicketItem(@PathVariable Long id,
       @RequestBody @Valid CreateTicketItemRequest request) {
@@ -75,6 +100,12 @@ public class TicketItemController {
     }
   }
 
+  /**
+   * Purpose: Delete a ticket item by id.
+   * Endpoint: DELETE /api/v1/ticket-items/{id}
+   * Params: id (path) - id of the ticket item to delete.
+   * Return: 200 on success; 404 if not found; 500 on failure.
+   */
   @DeleteMapping("/{id}")
   public ResponseEntity<ResultMessage<Void>> deleteTicketItem(@PathVariable Long id) {
     try {
