@@ -2,7 +2,6 @@ package com.ticketbooking.ticketitem;
 
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,11 +18,9 @@ import com.ticketbooking.common.ResultUtil;
 import javax.validation.Valid;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/v1/ticket-items")
-@Slf4j
 @RequiredArgsConstructor
 public class TicketItemController {
 
@@ -38,12 +35,7 @@ public class TicketItemController {
   @PostMapping
   public ResponseEntity<ResultMessage<TicketItemDTO>> createTicketItem(
       @RequestBody @Valid CreateTicketItemRequest request) {
-    try {
-      return ResponseEntity.ok(ResultUtil.data(ticketItemService.createTicketItem(request)));
-    } catch (Exception e) {
-      log.error("Error creating ticket item", e);
-      return ResponseEntity.internalServerError().body(ResultUtil.error(500, "Failed to create ticket item"));
-    }
+    return ResponseEntity.ok(ResultUtil.data(ticketItemService.createTicketItem(request)));
   }
 
   /**
@@ -54,14 +46,7 @@ public class TicketItemController {
    */
   @GetMapping("/{id}")
   public ResponseEntity<ResultMessage<TicketItemDTO>> getTicketItem(@PathVariable Long id) {
-    try {
-      return ResponseEntity.ok(ResultUtil.data(ticketItemService.getTicketItem(id)));
-    } catch (TicketItemNotFoundException e) {
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ResultUtil.error(404, e.getMessage()));
-    } catch (Exception e) {
-      log.error("Error getting ticket item", e);
-      return ResponseEntity.internalServerError().body(ResultUtil.error(500, "Failed to get ticket item"));
-    }
+    return ResponseEntity.ok(ResultUtil.data(ticketItemService.getTicketItem(id)));
   }
 
   /**
@@ -72,12 +57,7 @@ public class TicketItemController {
    */
   @GetMapping
   public ResponseEntity<ResultMessage<List<TicketItemDTO>>> listTicketItems() {
-    try {
-      return ResponseEntity.ok(ResultUtil.data(ticketItemService.listTicketItems()));
-    } catch (Exception e) {
-      log.error("Error listing ticket items", e);
-      return ResponseEntity.internalServerError().body(ResultUtil.error(500, "Failed to list ticket items"));
-    }
+    return ResponseEntity.ok(ResultUtil.data(ticketItemService.listTicketItems()));
   }
 
   /**
@@ -90,14 +70,7 @@ public class TicketItemController {
   @PutMapping("/{id}")
   public ResponseEntity<ResultMessage<TicketItemDTO>> updateTicketItem(@PathVariable Long id,
       @RequestBody @Valid CreateTicketItemRequest request) {
-    try {
-      return ResponseEntity.ok(ResultUtil.data(ticketItemService.updateTicketItem(id, request)));
-    } catch (TicketItemNotFoundException e) {
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ResultUtil.error(404, e.getMessage()));
-    } catch (Exception e) {
-      log.error("Error updating ticket item", e);
-      return ResponseEntity.internalServerError().body(ResultUtil.error(500, "Failed to update ticket item"));
-    }
+    return ResponseEntity.ok(ResultUtil.data(ticketItemService.updateTicketItem(id, request)));
   }
 
   /**
@@ -108,14 +81,7 @@ public class TicketItemController {
    */
   @DeleteMapping("/{id}")
   public ResponseEntity<ResultMessage<Void>> deleteTicketItem(@PathVariable Long id) {
-    try {
-      ticketItemService.deleteTicketItem(id);
-      return ResponseEntity.ok(ResultUtil.success());
-    } catch (TicketItemNotFoundException e) {
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ResultUtil.error(404, e.getMessage()));
-    } catch (Exception e) {
-      log.error("Error deleting ticket item", e);
-      return ResponseEntity.internalServerError().body(ResultUtil.error(500, "Failed to delete ticket item"));
-    }
+    ticketItemService.deleteTicketItem(id);
+    return ResponseEntity.ok(ResultUtil.success());
   }
 }

@@ -1,6 +1,5 @@
 package com.ticketbooking.match;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,13 +40,8 @@ public class MatchController {
    */
   @PostMapping
   public ResponseEntity<ResultMessage<MatchDTO>> createMatch(@RequestBody @Valid CreateMatchRequest request) {
-    try {
-      MatchDTO dto = matchService.createMatch(request);
-      return ResponseEntity.ok(ResultUtil.data(dto));
-    } catch (Exception e) {
-      log.error("Error creating match", e);
-      return ResponseEntity.internalServerError().body(ResultUtil.error(500, "Failed to create match"));
-    }
+    MatchDTO dto = matchService.createMatch(request);
+    return ResponseEntity.ok(ResultUtil.data(dto));
   }
 
   /**
@@ -59,15 +53,8 @@ public class MatchController {
   @GetMapping("/{matchId}")
   public ResponseEntity<ResultMessage<MatchDTO>> getMatch(@PathVariable Long matchId) {
     log.info("Getting match with id: {}", matchId);
-    try {
-      MatchDTO dto = matchService.getMatch(matchId);
-      return ResponseEntity.ok(ResultUtil.data(dto));
-    } catch (MatchNotFoundException e) {
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ResultUtil.error(404, e.getMessage()));
-    } catch (Exception e) {
-      log.error("Error getting match", e);
-      return ResponseEntity.internalServerError().body(ResultUtil.error(500, "Failed to get match"));
-    }
+    MatchDTO dto = matchService.getMatch(matchId);
+    return ResponseEntity.ok(ResultUtil.data(dto));
   }
 
   /**
@@ -81,15 +68,8 @@ public class MatchController {
   public ResponseEntity<ResultMessage<List<TicketDTO>>> getMatchTickets(@PathVariable Long matchId,
       @RequestParam(required = false) TicketStatusEnum status) {
     log.info("Getting tickets for match with id: {}, status: {}", matchId, status);
-    try {
-      matchService.getMatch(matchId);
-      return ResponseEntity.ok(ResultUtil.data(ticketService.getTicketsByMatchId(matchId, status)));
-    } catch (MatchNotFoundException e) {
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ResultUtil.error(404, e.getMessage()));
-    } catch (Exception e) {
-      log.error("Error getting tickets for match", e);
-      return ResponseEntity.internalServerError().body(ResultUtil.error(500, "Failed to get tickets for match"));
-    }
+    matchService.getMatch(matchId);
+    return ResponseEntity.ok(ResultUtil.data(ticketService.getTicketsByMatchId(matchId, status)));
   }
 
   /**
@@ -101,14 +81,7 @@ public class MatchController {
   @DeleteMapping("/{matchId}")
   public ResponseEntity<ResultMessage<Void>> deleteMatch(@PathVariable Long matchId) {
     log.info("Deleting match with id: {}", matchId);
-    try {
-      matchService.deleteMatch(matchId);
-      return ResponseEntity.ok(ResultUtil.success());
-    } catch (MatchNotFoundException e) {
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ResultUtil.error(404, e.getMessage()));
-    } catch (Exception e) {
-      log.error("Error deleting match", e);
-      return ResponseEntity.internalServerError().body(ResultUtil.error(500, "Failed to delete match"));
-    }
+    matchService.deleteMatch(matchId);
+    return ResponseEntity.ok(ResultUtil.success());
   }
 }
