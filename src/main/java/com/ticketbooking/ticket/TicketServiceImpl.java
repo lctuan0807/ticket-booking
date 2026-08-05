@@ -113,7 +113,8 @@ public class TicketServiceImpl implements TicketService {
     log.info("FROM DATABASE | Getting ticket with id: {}", id);
     count++;
     redisService.setObject("count", count);
-    TicketEntity ticket = ticketRepository.findById(id).orElse(null);
+    TicketEntity ticket = ticketRepository.findById(id)
+        .orElseThrow(() -> new TicketNotFoundException(id));
     redisService.setObject(genTicketKey(id), ticket);
     return ticket;
   }
